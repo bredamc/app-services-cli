@@ -7,6 +7,7 @@ import (
 	"github.com/redhat-developer/app-services-cli/pkg/connection"
 	"github.com/redhat-developer/app-services-cli/pkg/dump"
 	"github.com/redhat-developer/app-services-cli/pkg/localize"
+	"github.com/redhat-developer/app-services-cli/pkg/shared"
 
 	"github.com/redhat-developer/app-services-cli/pkg/cmdutil/flagutil"
 
@@ -18,13 +19,6 @@ import (
 	"github.com/redhat-developer/app-services-cli/pkg/cmd/factory"
 	"github.com/spf13/cobra"
 )
-
-const (
-	kafkaSvcName    = "kafka"
-	registrySvcName = "service-registry"
-)
-
-var validServices = []string{kafkaSvcName, registrySvcName}
 
 type options struct {
 	IO         *iostreams.IOStreams
@@ -44,7 +38,7 @@ func NewStatusCommand(f *factory.Factory) *cobra.Command {
 		Config:     f.Config,
 		Connection: f.Connection,
 		Logger:     f.Logger,
-		services:   validServices,
+		services:   shared.AllServiceLabels,
 		localizer:  f.Localizer,
 		Context:    f.Context,
 	}
@@ -54,12 +48,12 @@ func NewStatusCommand(f *factory.Factory) *cobra.Command {
 		Short:     opts.localizer.MustLocalize("status.cmd.shortDescription"),
 		Long:      opts.localizer.MustLocalize("status.cmd.longDescription"),
 		Example:   opts.localizer.MustLocalize("status.cmd.example"),
-		ValidArgs: validServices,
-		Args:      cobra.RangeArgs(0, len(validServices)),
+		ValidArgs: shared.AllServiceLabels,
+		Args:      cobra.RangeArgs(0, len(shared.AllServiceLabels)),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {
 				for _, s := range args {
-					if !flagutil.IsValidInput(s, validServices...) {
+					if !flagutil.IsValidInput(s, shared.AllServiceLabels...) {
 						return opts.localizer.MustLocalizeError("status.error.args.error.unknownServiceError", localize.NewEntry("ServiceName", s))
 					}
 				}

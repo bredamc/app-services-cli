@@ -2,14 +2,18 @@ package create
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/redhat-developer/app-services-cli/pkg/api/kas"
 	"github.com/redhat-developer/app-services-cli/pkg/icon"
 	"github.com/redhat-developer/app-services-cli/pkg/ioutil/spinner"
+	"github.com/redhat-developer/app-services-cli/pkg/remote"
+	"k8s.io/utils/strings/slices"
 
 	kafkamgmtclient "github.com/redhat-developer/app-services-sdk-go/kafkamgmt/apiv1/client"
 
@@ -128,6 +132,10 @@ func NewCreateCommand(f *factory.Factory) *cobra.Command {
 		return kafkacmdutil.GetCloudProviderCompletionValues(f)
 	})
 
+	_ = cmd.RegisterFlagCompletionFunc(flagutil.FlagRegion, func(cmd *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+		return kafkacmdutil.GetCloudProviderRegionCompletionValues(f, opts.provider)
+	})
+
 	cmdFlagUtil.EnableOutputFlagCompletion(cmd)
 
 	return cmd
@@ -145,14 +153,24 @@ func runCreate(opts *options) error {
 		return err
 	}
 
+	err, constants := remote.GetRemoteServiceConstants(opts.Context, opts.Logger)
+	if err != nil {
+		return err
+	}
+
 	if !opts.bypassTermsCheck {
+		opts.Logger.Debug("Validating provider and reqions")
+		err := validateProviderAndRegion(opts, constants, conn)
+		if err != nil {
+			return err
+		}
+
 		opts.Logger.Debug("Checking if terms and conditions have been accepted")
 		// the user must have accepted the terms and conditions from the provider
 		// before they can create a kafka instance
-		termsSpec := ams.GetRemoteTermsSpec(&opts.Context, opts.Logger)
 		var termsAccepted bool
 		var termsURL string
-		termsAccepted, termsURL, err = ams.CheckTermsAccepted(opts.Context, termsSpec.Kafka, conn)
+		termsAccepted, termsURL, err = ams.CheckTermsAccepted(opts.Context, constants.Kafka.Ams, conn)
 		if err != nil {
 			return err
 		}
@@ -160,6 +178,7 @@ func runCreate(opts *options) error {
 			opts.Logger.Info(opts.localizer.MustLocalize("service.info.termsCheck", localize.NewEntry("TermsURL", termsURL)))
 			return nil
 		}
+
 	}
 
 	var payload *kafkamgmtclient.KafkaRequestPayload
@@ -272,6 +291,64 @@ func runCreate(opts *options) error {
 	if !opts.wait {
 		opts.Logger.Info()
 		opts.Logger.Info(opts.localizer.MustLocalize("kafka.create.info.successAsync", nameTemplateEntry))
+	}
+
+	return nil
+}
+
+func validateProviderAndRegion(opts *options, constants *remote.DynamicServiceConstants, conn connection.Connection) error {
+
+	cloudProviders, _, err := conn.API().
+		Kafka().
+		GetCloudProviders(opts.Context).
+		Execute()
+
+	if err != nil {
+		return err
+	}
+
+	var selectedProvider *kafkamgmtclient.CloudProvider
+	providerNames := make([]string, len(cloudProviders.Items))
+	for _, item := range cloudProviders.Items {
+		providerNames = append(providerNames, item.GetName())
+		if item.GetName() == opts.provider {
+			selectedProvider = &item
+		}
+	}
+
+	if selectedProvider == nil {
+		providers := strings.Join(providerNames, ",")
+		return errors.New(opts.provider + " is not a valid provider name. Valid names are : " + providers)
+	}
+
+	cloudRegion, _, err := conn.API().
+		Kafka().
+		GetCloudProviderRegions(opts.Context, selectedProvider.GetId()).
+		Execute()
+
+	regionNames := make([]string, len(cloudRegion.Items))
+	var selectedRegion *kafkamgmtclient.CloudRegion
+	for _, item := range cloudRegion.Items {
+		providerNames = append(regionNames, item.GetDisplayName())
+		if item.GetDisplayName() == opts.provider {
+			selectedRegion = &item
+		}
+	}
+	regionsString := strings.Join(regionNames, ",")
+	if selectedRegion == nil || selectedRegion.Enabled == false {
+		return errors.New(opts.provider + " is not a valid region name. Valid names are : " + regionsString)
+	}
+
+	err, instanceTypes := ams.GetUserSupportedInstanceTypes(opts.Context, constants.Kafka.Ams, conn)
+	if err != nil {
+		return err
+	}
+
+	if !slices.Contains(selectedRegion.GetSupportedInstanceTypes(), instanceTypes) {
+		return errors.New("Selected region does not support the instance types that you can create." +
+			"Your region: " + opts.region +
+			" Your instance types: " + strings.Join(instanceTypes, ",") +
+			" Region supported instance types: " + strings.Join(selectedRegion.GetSupportedInstanceTypes(), ","))
 	}
 
 	return nil

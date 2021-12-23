@@ -6,6 +6,7 @@ import (
 
 	"github.com/redhat-developer/app-services-cli/pkg/ams"
 	"github.com/redhat-developer/app-services-cli/pkg/icon"
+	"github.com/redhat-developer/app-services-cli/pkg/remote"
 
 	"github.com/redhat-developer/app-services-cli/pkg/localize"
 	"github.com/redhat-developer/app-services-cli/pkg/serviceregistry"
@@ -131,10 +132,13 @@ func runCreate(opts *options) error {
 		opts.Logger.Debug("Checking if terms and conditions have been accepted")
 		// the user must have accepted the terms and conditions from the provider
 		// before they can create a registry instance
-		termsSpec := ams.GetRemoteTermsSpec(&opts.Context, opts.Logger)
+		err, constants := remote.GetRemoteServiceConstants(opts.Context, opts.Logger)
+		if err != nil {
+			return err
+		}
 		var termsAccepted bool
 		var termsURL string
-		termsAccepted, termsURL, err = ams.CheckTermsAccepted(opts.Context, termsSpec.ServiceRegistry, conn)
+		termsAccepted, termsURL, err = ams.CheckTermsAccepted(opts.Context, constants.ServiceRegistry.Ams, conn)
 		if err != nil {
 			return err
 		}

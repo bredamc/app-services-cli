@@ -9,6 +9,8 @@ import (
 	"github.com/redhat-developer/app-services-cli/internal/config"
 	"github.com/redhat-developer/app-services-cli/pkg/api"
 	"github.com/redhat-developer/app-services-cli/pkg/connection"
+	"github.com/redhat-developer/app-services-cli/pkg/iostreams"
+	"github.com/redhat-developer/app-services-cli/pkg/logging"
 )
 
 func NewConfigMock(cfg *config.Config) config.IConfig {
@@ -80,4 +82,13 @@ func NewKafkaRequestTypeMock(name string) kafkamgmtclient.KafkaRequest {
 	kafkaReq.SetName(name)
 
 	return kafkaReq
+}
+
+func NewLoggerMock() logging.Logger {
+	io := iostreams.System()
+	var logger logging.Logger
+	loggerBuilder := logging.NewStdLoggerBuilder()
+	loggerBuilder = loggerBuilder.Streams(io.Out, io.ErrOut)
+	logger, _ = loggerBuilder.Build()
+	return logger
 }

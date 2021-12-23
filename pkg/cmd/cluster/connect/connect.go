@@ -7,13 +7,13 @@ import (
 	"github.com/redhat-developer/app-services-cli/internal/config"
 	"github.com/redhat-developer/app-services-cli/pkg/cluster"
 	"github.com/redhat-developer/app-services-cli/pkg/cluster/kubeclient"
-	"github.com/redhat-developer/app-services-cli/pkg/cluster/services/resources"
 	"github.com/redhat-developer/app-services-cli/pkg/cluster/v1alpha"
 	"github.com/redhat-developer/app-services-cli/pkg/cmd/factory"
 	"github.com/redhat-developer/app-services-cli/pkg/connection"
 	"github.com/redhat-developer/app-services-cli/pkg/iostreams"
 	"github.com/redhat-developer/app-services-cli/pkg/localize"
 	"github.com/redhat-developer/app-services-cli/pkg/logging"
+	"github.com/redhat-developer/app-services-cli/pkg/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -65,7 +65,7 @@ func NewConnectCommand(f *factory.Factory) *cobra.Command {
 	cmd.Flags().BoolVar(&opts.ignoreContext, "ignore-context", false, opts.localizer.MustLocalize("cluster.common.flag.ignoreContext.description"))
 
 	_ = cmd.RegisterFlagCompletionFunc("service-type", func(cmd *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
-		return resources.AllServiceLabels, cobra.ShellCompDirectiveNoSpace
+		return shared.AllServiceLabels, cobra.ShellCompDirectiveNoSpace
 	})
 
 	return cmd

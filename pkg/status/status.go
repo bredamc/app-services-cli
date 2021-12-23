@@ -13,6 +13,7 @@ import (
 	"github.com/redhat-developer/app-services-cli/pkg/connection"
 	"github.com/redhat-developer/app-services-cli/pkg/kafka/kafkaerr"
 	"github.com/redhat-developer/app-services-cli/pkg/serviceregistry"
+	"github.com/redhat-developer/app-services-cli/pkg/shared"
 
 	"github.com/openconfig/goyang/pkg/indent"
 	srsmgmtv1 "github.com/redhat-developer/app-services-sdk-go/registrymgmt/apiv1/client"
@@ -63,7 +64,7 @@ func Get(ctx context.Context, opts *Options) (status *Status, ok bool, err error
 	status = &Status{}
 	api := opts.Connection.API()
 
-	if stringInSlice("kafka", opts.Services) {
+	if stringInSlice(shared.KafkaServiceName, opts.Services) {
 		if instanceID, exists := cfg.GetKafkaIdOk(); exists {
 			// nolint:govet
 			kafkaStatus, err := getKafkaStatus(ctx, api.Kafka(), instanceID)
@@ -82,7 +83,7 @@ func Get(ctx context.Context, opts *Options) (status *Status, ok bool, err error
 		}
 	}
 
-	if stringInSlice("service-registry", opts.Services) {
+	if stringInSlice(shared.ServiceRegistryServiceName, opts.Services) {
 		registryCfg := cfg.Services.ServiceRegistry
 		if registryCfg != nil && registryCfg.InstanceID != "" {
 			// nolint:govet
